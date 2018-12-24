@@ -8,6 +8,7 @@
 
 import SpriteKit
 import GameplayKit
+import CoreMotion
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
     
@@ -28,6 +29,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     //bitask properties
     let alienCategory: UInt32 = 0x1 << 1
     let photonTorpedoCategory: UInt32 = 0x1 << 0
+    
+    //motion properties
+    let motionManager = CMMotionManager()
+    var xAcceleration: CGFloat = 0
 
     override func didMove(to view: SKView) {
         initializeGameScene()
@@ -35,11 +40,23 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     //MARK:- Game Init methods
     private func initializeGameScene() {
+        initializeMotionControls()
         initializeGamePhysics()
         initializeGameScore()
         initializeLevelBackground()
         initializeCurrentPlayer()
         initializeGameTimer()
+        
+    }
+    
+    private func initializeMotionControls() {
+        motionManager.accelerometerUpdateInterval = 0.2
+        motionManager.startAccelerometerUpdates(to: .main) { (data, error) in
+            if let accelerometerData = data {
+                let acceleration = accelerometerData.acceleration
+                self.xAcceleration = CGFloat(acceleration.x) * 0.75 + self.xAcceleration * 0.25
+            }
+        }
         
     }
     
@@ -129,7 +146,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
     
+    
     //MARK:- Gameplay logic
+    override func didSimulatePhysics() {
+     //updating the player position using acceleration data
+        player.position.x += xAcceleration * 50
+        
+        //wrap the player sprite around the screen if it exceeds screen bounds
+        if player.position.x < -20 {
+            player.position = CGPoint(x: self.size.width + 20, y: player.position.y)
+        } else if player.position.x > self.size.width + 20 {
+            player.position = CGPoint(x: -20, y: player.position.y)
+        }
+    }
+    
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         fireTorpedo()
     }
