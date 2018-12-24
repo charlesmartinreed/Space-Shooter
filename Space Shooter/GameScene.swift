@@ -77,7 +77,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     //MARK:- Enemy creation
-    @objc func addAlien() {
+    @objc private func addAlien() {
         let min = 70
         let max = Int(self.frame.size.width - 70)
         //each time we add a new alien, our array is shuffled and the aliens get a new array index
@@ -107,6 +107,26 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         actionArray.append(SKAction.removeFromParent())
         
         alien.run(SKAction.sequence(actionArray))
+    }
+    
+    //MARK:- Contact Delegate protocol methods
+    func didBegin(_ contact: SKPhysicsContact) {
+        //first body and second body, need to find out which is torpedo and which is alien
+        var firstBody: SKPhysicsBody
+        var secondBody: SKPhysicsBody
+        
+        if contact.bodyA.categoryBitMask < contact.bodyB.categoryBitMask {
+            firstBody = contact.bodyA
+            secondBody = contact.bodyB
+        } else {
+            firstBody = contact.bodyB
+            secondBody = contact.bodyA
+        }
+        
+        //bitwise compare
+        if (firstBody.categoryBitMask & photonTorpedoCategory) != 0 && (secondBody.categoryBitMask & alienCategory) != 0 {
+            torpedoDidCollideWithAlien(torpedoNode: firstBody.node as! SKSpriteNode, alienNode: secondBody.node as! SKSpriteNode)
+        }
     }
     
     //MARK:- Gameplay logic
@@ -140,6 +160,28 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         actionArray.append(SKAction.removeFromParent())
         
         torpedoNode.run(SKAction.sequence(actionArray))
+    }
+    
+    private func torpedoDidCollideWithAlien(torpedoNode: SKSpriteNode, alienNode: SKSpriteNode) {
+        
+        //add our explosion
+        let explosion = SKEmitterNode(fileNamed: "Explosion")!
+        explosion.position = alienNode.position
+        self.addChild(explosion)
+        
+        //play the sound
+        self.run(SKAction.playSoundFileNamed("explosion.mp3", waitForCompletion: false))
+        
+        //remove the torpedo and alien
+        torpedoNode.removeFromParent()
+        alienNode.removeFromParent()
+        
+        self.run(SKAction.wait(forDuration: 2)) {
+            explosion.removeFromParent()
+        }
+        
+        //increment the score
+        score += 5
     }
     
     override func update(_ currentTime: TimeInterval) {
